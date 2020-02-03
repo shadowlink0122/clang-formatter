@@ -1,0 +1,73 @@
+/**
+ * Assign Statements
+ */
+#include <stdio>
+
+int func();
+int func(unsigned int , long long double);
+int func(name a, name b);
+typedef unsigned long long int ull;
+const int name = 0;
+
+struct name{
+	int a;
+	int* b;
+} name;
+
+union test{
+	int a[(10 - 1)],b[N+1],c,d;
+	struct name{
+		int a;
+		int b;
+	};
+};
+
+
+int 
+					main
+		(
+int 
+a, 
+int b
+, 	
+				void 
+		a
+) {
+	int *p;
+	int** q =& p;
+	int a = -1.00;
+	name n;
+	a ++;
+	a *= b + c / n.a * n->b;
+
+char c[100][100];
+scanf("%s", &c);
+	printf
+(   "%sbcd"
+, c
+					)
+;
+
+	for(int a = 0;i < 0;i++){a = 1;}
+				if(a == 1 || (c == c && b == b) || s){
+					int a;
+					return a;
+				}else if(!a){
+					return b;
+					break;
+				}else{
+					return c;
+				}
+
+				while(a[i+1] != p){}
+
+				switch(a){
+					case 1:
+						puts("one");
+					default:
+						puts("not one");
+				}
+
+				return zero;
+}
+

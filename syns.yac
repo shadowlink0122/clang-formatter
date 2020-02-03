@@ -1,0 +1,456 @@
+%{
+#include "defs.h"
+#define YYSTYPE char *
+char s[1024];
+int icount = 0;
+%}
+%token  ID INTEGER REAL SEMIC COLON
+	EQUAL ADD SUBTRACT MULTIPLY DIVIDE MOD LPAR RPAR UNKNOWN
+	LBLK RBLK COMMA DOT
+	VOID INT SHORT LONG FLOAT DOUBLE CHAR BOOL SIGNED UNSIGNED 
+	STRUCT UNION ENUM POINTER LARA RARA
+	STRING COMMENT RETURN
+
+	GREATER SMOLLER OR AND EXCLAMATION
+
+	IF ELSE SWITCH CASE DEFAULT
+	FOR WHILE DO BREAK 
+	TYPEDEF CONST STATIC EXTERN AUTO REGISTER ;
+%%
+Program
+	: Statements
+	{ }
+
+Statements
+	: Statement
+	{ indent(&icount); printf("%s\n", $1); }
+	| Statements Statement
+	{ indent(&icount); printf("%s\n", $2); }
+	| Statements LBLK 
+	{ indent(&icount); printf("{\n"); icount++; }
+	| Statements RBLK
+	{ icount--; indent(&icount); printf("}\n"); }
+	| Statements RBLK SEMIC
+	{ icount--; indent(&icount); printf("};\n\n"); }
+	| Statements RBLK Variable SEMIC
+	{ icount--; indent(&icount); printf("}%s;\n\n", $3); }
+
+Statement
+	// 変数の宣言
+	: Assign SEMIC
+	{ strcpy(s, $1); strcat(s, ";"); $$ = strdup(s); }
+	| Declaration SEMIC
+	{ strcpy(s, $1); strcat(s, ";"); $$ = strdup(s); }
+	| SpecialDeclaration SEMIC
+	{ strcpy(s, $1); strcat(s, ";"); $$ = strdup(s); }
+
+	| COMMENT
+	{ $$ = strdup(yytext); }
+
+	// 関数
+	| PrototypeDeclaration SEMIC
+	{ strcpy(s, $1); strcat(s, ";"); $$ = strdup(s); }
+	| FunctionCall SEMIC
+	{ strcpy(s, $1); strcat(s, ";"); $$ = strdup(s); }
+	| FunctionDeclaration 
+	{ $$ = strdup($1); }
+	| ReturnStatement SEMIC
+	{ strcpy(s, $1); strcat(s, ";"); $$ = strdup(s); }
+
+	// 条件分岐
+	| ConditnionalBranch
+	{ $$ = strdup($1); }
+
+	// ループ
+	| LoopStatement
+	{ $$ = strdup($1); }
+
+	// 構造体
+	| StructStatements
+	{ $$ = strdup($1); }
+
+	// 式
+	| Expressions SEMIC
+	{ strcpy(s, $1); strcat(s, ";"); $$ = strdup(s); }
+
+	//　その他
+	| Break SEMIC
+	{ strcpy(s, $1); strcat(s, ";"); $$ = strdup(s); }
+
+// 関数
+PrototypeDeclaration
+	: FunctionDeclaration
+	{ strcpy(s, $1); $$ = strdup(s); }
+	| Types Variable LPAR PrototypeArguments RPAR
+	{ strcpy(s, $1); strcat(s, " "); strcat(s, $2); 
+	  strcat(s, "("); strcat(s, $4); strcat(s, ")"); $$ = strdup(s); }
+
+PrototypeArguments
+	: Types
+	{ $$ = strdup($1); }
+	| PrototypeArguments COMMA Types
+	{ strcpy(s, $1); strcat(s, ", "); strcat(s, $3); $$ = strdup(s); }
+
+FunctionDeclaration
+	: Types Variable LPAR ArgumentsDec RPAR
+	{ strcpy(s, $1); strcat(s, " "); strcat(s, $2); 
+	  strcat(s, "("); strcat(s, $4); strcat(s, ")"); $$ = strdup(s); }
+	| Types Variable LPAR RPAR
+	{ strcpy(s, $1); strcat(s, " "); strcat(s, $2); strcat(s, "()"); $$ = strdup(s); }
+
+ReturnStatement
+	: RETURN Expression
+	{ strcpy(s, "return "); strcat(s, $2); $$ = strdup(s); }
+	| RETURN Variable
+	{ strcpy(s, "return "); strcat(s, $2); $$ = strdup(s); }
+	| RETURN 
+	{ strcpy(s, "return "); $$ = strdup(s); }
+
+ArgumentsDec
+	: ArgumentDec 
+	{ strcpy(s, $1); $$ = strdup(s);}
+	| ArgumentsDec COMMA ArgumentDec
+	{ strcpy(s, $1); strcat(s, ", "); strcat(s, $3); $$ = strdup(s);}
+
+ArgumentDec
+	: Types Variable
+	{ strcpy(s, $1); strcat(s, " "); strcat(s, $2); $$ = strdup(s);}
+
+FunctionCall
+	: Variable LPAR Variables RPAR 
+	{ strcpy(s, $1); strcat(s, "("); strcat(s, $3); strcat(s, ")"); $$ = strdup(s); }
+	| Variable LPAR RPAR 
+	{ strcpy(s, $1); strcat(s, "()"); $$ = strdup(s); }
+
+// 条件分岐
+
+ConditnionalBranch
+	: IfStatements
+	{ $$ = strdup($1); }
+	| SwitchStatements
+	{ $$ = strdup($1); }
+
+IfStatements
+	: IF LPAR Conditions RPAR
+	{ strcpy(s, "if( "); strcat(s,$3); strcat(s, " )"); $$ = strdup(s); }
+	| ELSE IF LPAR Conditions RPAR
+	{ strcpy(s, "else if( "); strcat(s,$4); strcat(s, " )"); 
+	  $$ = strdup(s); }
+	| ELSE 
+	{ strcpy(s, "else"); $$ = strdup(s); }
+
+Conditions
+	: Expressions
+	{ $$ = strdup($1); }
+	| EXCLAMATION Conditions
+	{ strcpy(s, "!"); strcat(s, $2); $$ = strdup(s); }
+	| LPAR Conditions RPAR
+	{ strcpy(s, "( "); strcat(s, $2); strcat(s, " )");$$ = strdup(s); }
+
+	| Conditions OR OR Conditions
+	{ strcpy(s, $1); strcat(s, " || "); strcat(s,$4); $$ = strdup(s); }
+	| Conditions AND AND Conditions
+	{ strcpy(s, $1); strcat(s, " && "); strcat(s,$4); $$ = strdup(s); }
+	| Conditions EQUAL EQUAL Conditions
+	{ strcpy(s, $1); strcat(s, " == "); strcat(s,$4); $$ = strdup(s); }
+	| Conditions GREATER Conditions
+	{ strcpy(s, $1); strcat(s, " > "); strcat(s,$3); $$ = strdup(s); }
+	| Conditions SMOLLER Conditions
+	{ strcpy(s, $1); strcat(s, " < "); strcat(s,$3); $$ = strdup(s); }
+	| Conditions GREATER EQUAL Conditions
+	{ strcpy(s, $1); strcat(s, " >= "); strcat(s,$4); $$ = strdup(s); }
+	| Conditions SMOLLER EQUAL Conditions
+	{ strcpy(s, $1); strcat(s, " <= "); strcat(s,$4); $$ = strdup(s); }
+	| Conditions EXCLAMATION EQUAL Conditions
+	{ strcpy(s, $1); strcat(s, " != "); strcat(s,$4); $$ = strdup(s); }
+
+SwitchStatements
+	: SWITCH LPAR VName RPAR
+	{ strcpy(s, "switch( "); strcat(s, $3); strcat(s, " )"); $$ = strdup(s); }
+	| CASE VName COLON
+	{ strcpy(s, "case "); strcat(s, $2); strcat(s, ":"); $$ = strdup(s); }
+	| CASE Constant COLON
+	{ strcpy(s, "case "); strcat(s, $2); strcat(s, ":"); $$ = strdup(s); }
+	| CASE String COLON
+	{ strcpy(s, "case "); strcat(s, $2); strcat(s, ":"); $$ = strdup(s); }
+	| DEFAULT COLON
+	{ $$ = strdup("default:"); }
+
+// ループ
+LoopStatement
+	: For
+	{ $$ = strdup($1); }
+	| While
+	{ $$ = strdup($1); }
+	| While SEMIC
+	{ strcpy(s, $1); strcat(s, ";"); $$ = strdup(s); }
+	| Do
+	{ $$ = strdup($1); }
+
+For
+	: FOR LPAR LoopDeclaration LoopConditions LoopExpressions RPAR
+	{ strcpy(s, "for("); strcat(s, $3); strcat(s, $4);
+	  strcat(s, $5); strcat(s, ")"); $$ = strdup(s); }
+
+LoopDeclaration
+	: SEMIC
+	{ $$ = strdup("; "); }
+	| Declaration SEMIC
+	{ strcpy(s, $1); strcat(s, "; "); $$ = strdup(s); }
+
+LoopConditions
+	: SEMIC
+	{ $$ = strdup(" ; "); }
+	| Conditions SEMIC
+	{ strcpy(s, $1); strcat(s, "; "); $$ = strdup(s); }
+
+LoopExpressions
+	: Expressions 
+	{ strcpy(s, $1); $$ = strdup(s); }
+	| 
+	{ $$ = strdup(""); }
+
+While
+	: WHILE LPAR Conditions RPAR
+	{ strcpy(s, "while( "); strcat(s, $3); strcat(s, " )"); $$ = strdup(s); }
+
+Do
+	: DO 
+	{ $$ = strdup("do"); }
+
+// 構造体
+StructStatements
+	: StructStatement
+	{ $$ = strdup($1); }
+
+StructStatement
+	: StructDeclaration
+	{ $$ = strdup($1); }
+	| Members 
+	{ $$ = strdup($1); }
+
+StructDeclaration
+	: STRUCT Variable 
+	{ strcpy(s, "struct"); strcat(s, " "); strcat(s, $2); $$ = strdup(s); }
+	| UNION Variable 
+	{ strcpy(s, "union"); strcat(s, " "); strcat(s, $2); $$ = strdup(s); }
+
+StructMembers
+	: Variable DOT Variable
+	{ strcpy(s, $1); strcat(s, "."); strcat(s, $3); $$ = strdup(s); }
+	| Variable SUBTRACT GREATER Variable
+	{ strcpy(s, $1); strcat(s, "->"); strcat(s, $4); $$ = strdup(s); }
+
+Members
+	: Member SEMIC
+	{ strcpy(s, $1); strcat(s, ";"); $$ = strdup(s); }
+
+Member
+	: Types Variable
+	{ strcpy(s, $1); strcat(s, " "); strcat(s, $2); $$ = strdup(s); }
+	| Member COMMA Variable
+	{ strcpy(s, $1); strcat(s, ", "); strcat(s, $3); $$ = strdup(s); }
+
+
+
+// その他の文
+Break 
+	: BREAK
+	{ $$ = strdup(yytext); }
+
+// 変数の宣言
+SpecialDeclaration
+	: StorageClassSpecifier Types Variable
+	{ strcpy(s, $1); strcat(s, " "); strcat(s, $2); strcat(s, " ");
+	  strcat(s, $3); $$ = strdup(s); }
+	| StorageClassSpecifier Types Assign
+	{ strcpy(s, $1); strcat(s, " "); strcat(s, $2); strcat(s, " ");
+	  strcat(s, $3); $$ = strdup(s); }
+
+StorageClassSpecifier
+	: TYPEDEF
+	{ $$ = strdup(yytext); }
+	| CONST
+	{ $$ = strdup(yytext); }
+	| STATIC
+	{ $$ = strdup(yytext); }
+	| EXTERN
+	{ $$ = strdup(yytext); }
+	| AUTO
+	{ $$ = strdup(yytext); }
+	| REGISTER
+	{ $$ = strdup(yytext); }
+
+Declaration
+	: Types Variables
+	{ strcpy(s, $1); strcat(s, " "); strcat(s, $2); $$ = strdup(s); }
+	| Types Assigns
+	{ strcpy(s, $1); strcat(s, " "); strcat(s, $2); $$ = strdup(s); }
+
+Types
+	: Type
+	{ $$ = strdup($1); }
+	| Types Type
+	{ strcpy(s, $1); strcat(s, " "); strcat(s, $2); $$ = strdup(s); }
+
+Assigns
+	: Assign
+	{ $$ = strdup($1); }
+	| Assigns COMMA Assign
+	{ strcpy(s, $1); strcat(s, ", "); strcat(s, $3); $$ = strdup(s); }
+
+Assign
+	: Variable EQUAL Expression
+	{ strcpy(s, $1); strcat(s, " = "); strcat(s, $3); $$ = strdup(s); }
+	| Variable OmittedSymbol Expression
+	{ strcpy(s, $1); strcat(s, $2); strcat(s, $3); $$ = strdup(s); }
+
+// 式
+Expressions
+	: Expression
+	{ $$ = strdup($1); }
+	| ExpressionOmitted
+	{ $$ = strdup($1); }
+	| Expressions COMMA Expression
+	{ strcpy(s, $1); strcat(s, ", "); strcat(s, $3); $$ = strdup(s); }
+
+Expression
+	: Expression ADD Term
+	{ strcpy(s, $1); strcat(s, " + "); strcat(s, $3); $$ = strdup(s); }
+	| Expression SUBTRACT Term
+	{ strcpy(s, $1); strcat(s, " - "); strcat(s, $3); $$ = strdup(s); }
+	| Term
+	{ $$ = $1; }
+Term
+	: Term MULTIPLY Factor
+	{ strcpy(s, $1); strcat(s, " * "); strcat(s, $3); $$ = strdup(s); }
+	| Term DIVIDE Factor
+	{ strcpy(s, $1); strcat(s, " / "); strcat(s, $3); $$ = strdup(s); }
+	| Term MOD Factor
+	{ strcpy(s, $1); strcat(s, " % "); strcat(s, $3); $$ = strdup(s); }
+	| Factor
+	{ $$ = $1; }
+Factor
+	: Variable
+	{ $$ = $1; }
+	| Constant
+	{ $$ = $1; }
+	| StructMembers
+	{ $$ = $1; }
+	| SUBTRACT Constant
+	{ strcpy(s, "-"); strcat(s, $2); $$ = strdup(s); }
+	| LPAR Expression RPAR
+	{ strcpy(s, "("); strcat(s, $2); strcat(s, ")"); $$ = strdup(s); }
+
+// 式の省略形
+ExpressionOmitted
+	: Increment
+	{ $$ = strdup($1); }
+
+Increment
+	: ADD ADD Variable
+	{ strcpy(s, "++"); strcat(s, $3); $$ = strdup(s); }
+	| Variable ADD ADD
+	{ strcpy(s, $1); strcat(s, "++"); $$ = strdup(s); }
+	| SUBTRACT SUBTRACT Variable
+	{ strcpy(s, "--"); strcat(s, $3); $$ = strdup(s); }
+	| Variable SUBTRACT SUBTRACT
+	{ strcpy(s, $1); strcat(s, "--"); $$ = strdup(s); }
+
+OmittedSymbol
+	: ADD EQUAL
+	{ $$ = strdup(" += "); }
+	| SUBTRACT EQUAL
+	{ $$ = strdup(" -= "); }
+	| MULTIPLY EQUAL
+	{ $$ = strdup(" *= "); }
+	| DIVIDE EQUAL
+	{ $$ = strdup(" /= "); }
+	| MOD EQUAL
+	{ $$ = strdup(" %= "); }
+
+// 変数
+Variables
+	: Variable
+	{ $$ = $1; }
+	| Variables COMMA Variable
+	{ strcpy(s, $1); strcat(s, ", "); strcat(s, $3); $$ = strdup(s); }
+	| String
+	{ $$ = strdup($1); }
+
+Variable
+	: VName
+	{ $$ = strdup(yytext); }
+
+	| Pointer VName
+	{ strcpy(s, $1); strcat(s, $2); $$ = strdup(s); }
+	| Variable Array
+	{ strcpy(s, $1); strcat(s, $2); $$ = strdup(s); }
+
+VName
+	: ID
+	{ $$ = strdup(yytext); }
+
+String
+	: STRING
+	{ $$ = strdup(yytext); }
+
+// 型
+Type
+	: VOID
+	{ $$ = strdup(yytext); }
+	| INT
+	{ $$ = strdup(yytext); }
+	| SHORT
+	{ $$ = strdup(yytext); }
+	| LONG
+	{ $$ = strdup(yytext); }
+	| FLOAT
+	{ $$ = strdup(yytext); }
+	| DOUBLE
+	{ $$ = strdup(yytext); }
+	| BOOL
+	{ $$ = strdup(yytext); }
+	| CHAR
+	{ $$ = strdup(yytext); }
+	| SIGNED
+	{ $$ = strdup(yytext); }
+	| UNSIGNED
+	{ $$ = strdup(yytext); }
+	| Variable
+	{ $$ = strdup($1); }
+
+// 変数修飾子
+Pointer
+	: MULTIPLY
+	{ $$ = strdup("*"); }
+	| POINTER
+	{ $$ = strdup(yytext); }
+	| AND
+	{ $$ = strdup("&"); }
+
+Array
+	: LARA RARA
+	{ strcpy(s, "[]"); $$ = strdup(s); }
+	| LARA Expression RARA
+	{ strcpy(s, "["); strcat(s, $2); strcat(s, "]"); $$ = strdup(s); }
+
+// 値
+Constant
+	: INTEGER
+	{ $$ = strdup(yytext); }
+	| REAL
+	{ $$ = strdup(yytext); }
+%%
+#include "lex.yy.c"
+void yyerror(char *s) {
+    fprintf(stderr, "\n%s at %d: nearby \"%s\"\n\n", s, linecounter, yytext);
+    exit(EXIT_FAILURE);
+}
+
+void indent(int *c){
+    if(*c < 0) yyerror("}");
+    for(int i = 0;i < *c;i++)printf("\t");
+}
+
+
